@@ -1,29 +1,61 @@
 const http = require('http');
- const port = process.env.PORT || 3000;
- 
- const requestHandler = (request, response) => {
-   response.end('Hello World!');
- };
- 
- const server = http.createServer(requestHandler);
- 
- server.listen(port, (err) => {
-   if (err) {
-     return console.log('Something bad happened', err);
-   }
- 
-   console.log(`Server is listening on ${port}`);
- });
-const qrcode = require('qrcode-terminal');
-const { Client, Buttons, List, MessageMedia } = require('whatsapp-web.js'); 
+const port = process.env.PORT || 3000;
+const qrcode = require('qrcode');
+const { Client } = require('whatsapp-web.js');
+
 const client = new Client();
-client.on('qr', qr => {
-    qrcode.generate(qr, {small: true});
+let qrCodeData = null; 
+client.on('qr', (qr) => {
+  qrcode.toDataURL(qr, (err, url) => {
+    if (err) {
+      console.error('Erro ao gerar QR code:', err);
+      return;
+    }
+    qrCodeData = url; 
+    console.log('QR code gerado! Acesse a URL para visualizar.');
+  });
 });
+
 client.on('ready', () => {
-    console.log('Tudo certo! WhatsApp conectado.');
+  console.log('Tudo certo! WhatsApp conectado.');
 });
+
 client.initialize();
+
+const requestHandler = (request, response) => {
+  if (!qrCodeData) {
+    response.writeHead(200, { 'Content-Type': 'text/html' });
+    response.end(`
+      <html>
+        <body>
+          <h1>Aguardando QR Code...</h1>
+          <p>Atualize a página em alguns segundos.</p>
+        </body>
+      </html>
+    `);
+    return;
+  }
+
+  response.writeHead(200, { 'Content-Type': 'text/html' });
+  response.end(`
+    <html>
+      <body>
+        <h1>Escaneie o QR Code</h1>
+        <img src="${qrCodeData}" alt="QR Code" />
+        <p>Use o WhatsApp no seu celular para escanear o código acima.</p>
+      </body>
+    </html>
+  `);
+};
+
+const server = http.createServer(requestHandler);
+
+server.listen(port, (err) => {
+  if (err) {
+    return console.log('Algo deu errado:', err);
+  }
+  console.log(`Servidor rodando na porta ${port}`);
+});
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
@@ -40,7 +72,7 @@ client.on('message', async msg => {
         const contact = await msg.getContact();
         const name = contact.pushname; 
         await client.sendMessage(msg.from,'Olá! '+ name.split(" ")[0] + '. Sou o assistente virtual da empresa Consultoria 20/20. Como posso ajudá-lo hoje? Por favor, digite uma das opções abaixo:\n\n🚀 1 - Quero melhorar minhas vendas e marketing\n🚀 2 - Preciso organizar a parte financeira da minha ótica\n🚀 3 - Quero otimizar a operação e gestão do meu negócio\n🚀 4 - Quero saber mais sobre a consultoria completa\n🚀 5 - Falar com um especialista'); //Primeira mensagem de texto5 - Falar com um especialista
-        await delay(3000); x
+        await delay(3000); 
         await chat.sendStateTyping(); 
         await delay(5000); 
         
