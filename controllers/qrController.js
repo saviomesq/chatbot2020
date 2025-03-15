@@ -1,7 +1,8 @@
 // controllers/qrController.js
 const qrCodes = new Map();
+const User = require('../schema/User');
 
-const getQR = (req, res) => {
+const getQR = async (req, res) => {
   const { userId } = req.params;
 
   if (!req.session.loggedIn || req.session.userId !== userId) {
@@ -9,6 +10,9 @@ const getQR = (req, res) => {
   }
 
   const qrCodeData = qrCodes.get(userId);
+  const user = await User.findOne({ userId });
+  const messages = user ? user.customMessages : new Map();
+
   if (!qrCodeData) {
     res.send(`
       <html>
@@ -22,7 +26,7 @@ const getQR = (req, res) => {
         </head>
         <body>
           <div class="container">
-            <h1>Aguardando QR Code para ${userId}...</h1>
+            <h1>Aguardando QR Code</h1>
             <p>Por favor, aguarde. A página será recarregada automaticamente.</p>
           </div>
           <script>
@@ -44,18 +48,38 @@ const getQR = (req, res) => {
       </html>
     `);
   } else {
-    let adminContent = req.session.isAdmin ? `
-      <h2>Adicionar Novo Usuário</h2>
-      <form method="POST" action="/add-user">
-        <label>Email:</label>
-        <input type="email" name="email" required>
-        <label>Senha:</label>
-        <input type="password" name="password" required>
-        <label>ID do Usuário:</label>
-        <input type="text" name="userId" required>
-        <button type="submit">Adicionar Usuário</button>
-      </form>
-    ` : '';
+    let adminContent = '';
+    if (req.session.isAdmin) {
+      adminContent = `
+        <h2>Adicionar Novo Usuário</h2>
+        <form method="POST" action="/add-user">
+          <label>Email:</label>
+          <input type="email" name="email" required>
+          <label>Senha:</label>
+          <input type="password" name="password" required>
+          <label>ID do Usuário:</label>
+          <input type="text" name="userId" required>
+          <button type="submit">Adicionar Usuário</button>
+        </form>
+        <h2>Editar Minhas Mensagens</h2>
+        <form method="POST" action="/update-messages">
+          <label>Saudação:</label>
+          <input type="text" name="greeting" value="${messages.get('greeting') || ''}" required>
+          <label>Opção 1:</label>
+          <input type="text" name="option1" value="${messages.get('option1') || ''}" required>
+          <label>Opção 2:</label>
+          <input type="text" name="option2" value="${messages.get('option2') || ''}" required>
+          <label>Opção 3:</label>
+          <input type="text" name="option3" value="${messages.get('option3') || ''}" required>
+          <label>Opção 4:</label>
+          <input type="text" name="option4" value="${messages.get('option4') || ''}" required>
+          <label>Opção 5:</label>
+          <input type="text" name="option5" value="${messages.get('option5') || ''}" required>
+          <button type="submit">Atualizar Minhas Mensagens</button>
+        </form>
+        <a href="/admin/users">Gerenciar Usuários</a>
+      `;
+    }
 
     res.send(`
       <html>
@@ -67,7 +91,7 @@ const getQR = (req, res) => {
             h2 { color: #333; margin-top: 2rem; margin-bottom: 1rem; }
             img { max-width: 100%; margin: 1rem 0; }
             p { color: #555; margin-bottom: 1rem; }
-            a { color: #007bff; text-decoration: none; }
+            a { color: #007bff; text-decoration: none; margin: 0.5rem; display: inline-block; }
             a:hover { text-decoration: underline; }
             label { display: block; margin-bottom: 0.5rem; color: #555; }
             input { width: 100%; padding: 0.75rem; margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
@@ -98,4 +122,4 @@ const checkQR = (req, res) => {
   res.json({ qrReady: !!qrCodeData });
 };
 
-module.exports = { getQR, checkQR, qrCodes }; // Exportar qrCodes para uso no serviço
+module.exports = { getQR, checkQR, qrCodes };
